@@ -1,3 +1,13 @@
+	- containers are meant to be transient in nature, which means they are meant to last
+	only for a short period of time. They're called upon when required to process data and destroyed once finished
+	The same is true for the data within the container. The data is destroyed, along with the container.
+
+	- To persist data processed by the containers, we attach a volume to the containers when they are created.
+	The data processed by the container is now placed
+	in this volume, thereby retaining it permanently.Even if the container is deleted,
+	the data generated or processed by it remains
+
+
 apiVersion: v1
 kind: Pod
 metadata:
