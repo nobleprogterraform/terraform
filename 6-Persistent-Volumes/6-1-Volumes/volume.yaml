@@ -1,3 +1,22 @@
+the Container Storage Interface was developed to support multiple storage solutions. 
+	 With CSI, you can now write your own drivers for your own storage to work with Kubernetes.
+	 Portworx, Amazon EBS, Azure Disk, Dell EMC Isilon, PowerMax, Unity, XtremIO, NetApp, Nutanix,
+	HPE, Hitachi, Pure Storage. Everyone's got their own CSI drivers. Note that CSI is not a Kubernetes specific standard.
+	It is meant to be a universal standard, and if implemented, allows any container orchestration tool
+	to work with any storage vendor with a supported plugin.
+	Currently, Kubernetes, Cloud Foundry, and Mesos are on board with CSI.
+	
+	CSI defines a set of RPCs, or remote procedure calls,
+    that will be called by the container orchestrator,and these must be implemented by the storage drivers.
+	For example, CSI says that when a pod is created and requires a volume, the container orchestrator,
+	in this case Kubernetes, should call the create volume RPC and pass a set of details such as the volume name.
+	The storage driver should implement this RPC and handle that request and provision a new volume on the storage array
+ ==================================================
+
+
+
+
+
 - containers are meant to be transient in nature, which means they are meant to last
 only for a short period of time. They're called upon when required to process data and destroyed once finished
 The same is true for the data within the container. The data is destroyed, along with the container.
