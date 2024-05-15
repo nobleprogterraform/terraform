@@ -1,0 +1,31 @@
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: pv-vol1
+spec:
+  accessModes: [ "ReadWriteOnce" ]
+  capacity:
+   storage: 100Mi
+  hostPath:
+   path: /tmp/data
+
+
+spec:
+  accessModes: [ "ReadWriteOnce" ]
+  capacity:
+   storage: 100Mi
+  gcePersistentDisk:
+   pdName: pd-disk
+   fsType: ext4
+
+
+
+spec:
+  accessModes: [ "ReadWriteOnce" ]
+  capacity:
+   storage: 100Mi
+  awsElasticBlockStore:
+   volumeId: volumeId
+   fsType: ext4
+
+  kubectl get pv
