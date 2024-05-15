@@ -1,3 +1,16 @@
+- The problem with PVs is that before this PV is created,
+you must have created the disk on Google Cloud. Every time an application requires storage,
+you have to first manually provision the disk on Google Cloud,
+and then manually create a persistent volume definition file using the same name as that of the disk that you created.
+That's called static provisioning volumes
+
+-It would've been nice if the volume gets provisioned automatically
+when the application requires it, and that's where storage classes come in
+
+-With storage classes, you can define a provisioner, such as Google Storage,
+that can automatically provision storage on Google Cloud
+and attach that to pods when a claim is made
+That's called dynamic provisioning of volumes
 
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
@@ -34,4 +47,11 @@ spec:
     - name: mypd
       persistentVolumeClaim:
         claimName: myclaim
+
+-we now have a storage class, so we no longer need the PV definition,
+because the PV and any associated storage is going to be created automatically
+
+- There are many other provisioners as well, such as, for AWS EBS, Azure File, Azure Disk
+With each of these provisioners, you can pass in additional parameters,
+such as the type of disk to provision, the replication type, et cetera
 
