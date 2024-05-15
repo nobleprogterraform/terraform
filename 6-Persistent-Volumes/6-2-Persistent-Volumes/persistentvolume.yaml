@@ -1,3 +1,11 @@
+- When we created volumes in the previous section,we configured volumes within the pod definition file,
+	so every configuration information required to configure storage for the volume goes within the pod definition file.
+	Now, when you have a large environment with a lot of users deploying a lot of pods, the users would have to configure storage
+	every time for each pod. Whatever storage solution is used, the users who deploys the pods would have to configure that
+	on all pod definition files in his environment
+	- Instead, you would like to manage storage more centrally. You would like it to be configured in a way
+	that an administrator can create a large pool of storage and then have users take out pieces from it as required.
+
 kind: PersistentVolume
 apiVersion: v1
 metadata:
