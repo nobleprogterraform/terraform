@@ -1,0 +1,125 @@
+Network namespaces:
+	
+		
+	- Network namespaces are used by containers like Docker to implement network isolation. As we know already, containers are separated
+		from the underlying host using namespaces.So what are namespaces? If your host was your house,
+		then namespaces are the rooms within the house that you assign to each of your children
+	- When the container is created, we create a network namespace for it, 
+		Within its namespace, the container can have its own virtual interfaces
+	- To establishing connectivity between two namespaces, you can connect two namespaces together using a virtual ethernet pair, or a virtual cable
+		with two interfaces on either ends
+	-  The next step is to attach each interface to the appropriate namespace.
+	-  We can then assign ip addresses to each of these namespaces.
+	-  We then bring up the interface using the ip link setup command
+	- Now namespaces can now reach each other. Try a ping from the red namespace to the blue
+	
+	
+	- If there are many namespaces then in order to enable communication between all of them you create a virtual switch on the host
+		There are multiple solutions available, such as the native solution, called as Linux bridge
+	- To create an internal bridge network, we add a new interface to the host
+		ip link add v-net-0 type bridge (for our host its just another interface like eth0 but for namepsaces it works as switch)
+		ip link set dev v-net-0 up (to bring interface up)
+	- Now we create cable to connect each namespace to bridge, and then connect them with cable 
+		ip link veth-red type veth peer name veth-red-br (veth-red interface for namespace and veth-red-br interface for bridge)
+		ip link veth-blue type veth peer name veth-blue-br 
+		ip link set veth-red netns red (connect interface to namespace)
+		ip link set veth-red-br master v-net-0 (connect interface to bridge)
+
+	-  Now all namespaces can connect to each other, but our host at 192.168.1.2 want to connect to one of these namespaces
+		By default it can not, as host is on 1 network and namespaces are another. For our host the switch is 
+		like another interface. Now if we simply assign an ip address to this interface then we can reach to namespaces using.
+		ip addr add 192.168.15.5/24 dev v-net-0 
+		ping 192.168.15.1 (ping red namespace)
+		
+		
+Container Networking Interface (CNI)
+	- Docker, RKT, MESOS,Kubernetes are different container tools that uses container networking process to establish networking
+	- The CNI is a set of standards that define how programs should be developed to solve networking challenges in a container runtime environments.
+	- CNI defines a set of responsibilities for container run times and plugins. For container run times,
+		CNI specifies that it is responsible for creating a network namespace for each container.
+		On the plugin side, it defines that the plugin should support add, del and check command line arguments
+		and that these should accept parameters like container and network namespace. The plug-in should take care
+		of assigning IP addresses to the pods and any associated routes required for the containers to reach other containers in the network.
+	- CNI comes with a set of supported plugins already such as Bridge, VLAN, IP VLAN, MAC VLAN, one for Windows as well as IPAM 
+		plugins like Host-Local and DHCP
+
+Pod Networking
+	- How do they communicate with each other? How do you access the services running on these pods internally from within the cluster
+		as well as externally from outside the clusterKubernetes does not come with a built-in solution for Pod networking 
+	- However, Kubernetes have laid out clearly, the requirements for pod networking
+	- Kubernetes expects every pod to get its own unique IP address and that every pod should be able to reach every other pod
+		within the same node using that IP address. And every pod should be able to reach every other pod on other nodes as well
+		using the same IP address
+	- That's where CNI comes in acting as the middleman. CNI tells Kubernetes that this is how you should call a script(which add container to
+		a network) as soon as you create a container 
+		And CNI tells us, the plugin provider, "This is how your script should look like." So we need to modify the script a little bit
+		to meet CNI standards. It should have an add section that will take care of adding a container to the network and a delete section that 
+		will take care of deleting container interfaces from the network and freeing the IP address, etc
+	-Whenever a container is created, the container runtime looks at the CNI configuration passed as a command line argument when it was run
+		and identifies our script's name. It then looks in the CNIs bin directory to find our script and then executes the script with the add command
+		and the name and namespace ID of the container, and then our script takes care of the rest.
+		
+CNI Weave
+	- where the Weave CNI plugin is deployed on a cluster, it deploys an agent or service on each node. They communicate with each other to exchange information regarding the nodes and networks and pods within them. Each agent or peer stores a topology of the entire setup.That way they know the pods and their IPs on the other node
+	- Weave and Weave Peers can be deployed as services or daemons on each node in the cluster manually, or if Kubernetes is set up already,
+		then an easier way to do that is to deploy it as pods in the cluster. Weave can be deployed in the cluster with a single kubectl apply command
+	- Most importantly, the Weave peers are deployed as a daemon set. A daemon set ensures that one pod of the given kind
+		is deployed on all nodes in the cluster
+	
+	Practical:
+		- Inspect the kubelet service and identify the container runtime endpoint value is set for Kubernetes.
+			ps -aux | grep kubelet | grep --color container-runtime-endpoint 
+		- What is the path configured with all binaries of CNI supported plugins?
+			/opt/cni/bin
+		- What is the CNI plugin configured to be used on this kubernetes cluster?
+			sudo ls /etc/cni/net.d/
+		- What binary executable file will be run by kubelet after a container and its associated namespace are created?
+			sudo cat /etc/cni/net.d/10-weave.conflist
+
+Service Networking:
+	- During pod networking, we saw through routes, or other overlay techniques,
+		we can get the pods in different nodes to talk to each other, 
+		forming a large virtual network where all pods can reach each other
+	- you would rarely configure your pods to communicate directly with each other.
+	If you want a pod to access services hosted on another pod,  you would always use a service
+	- When a service is created, it is accessible from all pods on the cluster,
+		irrespective of what nodes the pods are on. While a pod is hosted on a node,
+		a service is hosted across the cluster. It is not bound to a specific node,
+		but remember, the service is only accessible from within the cluster.
+		This type of service is known as ClusterIP
+	- Say for instance, a front end pod was hosting a web application,
+		to make the application on the pod accessible outside the cluster, we create another service of type NodePort.
+		This service also gets an IP address assigned to it and works just like ClusterIP,
+		as in all the other pods can access this service using it's IP.
+		But in addition, it also exposes the application on a port on all nodes in the cluster.
+		That way external users or applications have access to the service.
+
+	- When we create a service object in Kubernetes, it is assigned an IP address from a predefined range.
+		The kube-proxy components running on each node gets that IP address and creates forwarding rules
+		on each node in the cluster. Saying, "Any traffic coming to this IP, the IP of the service,
+		should go to the IP of the pod.
+
+Optional DNS in Kubernetes
+	- So we have a three node Kubernetes cluster, with some pods and services deployed on them.
+		Each node has a node name and IP address assigned to it. The node names and IP addresses
+		of the cluster are probably registered in a DNS server in your organization.
+		Now, how that is managed? who accesses them? are not of concern in this course.
+		In this course, we discuss about DNS resolution, within the cluster, between the different components,
+		in the cluster such as pods and services
+	- Kubernetes deploys a built-in DNS server by default when you set up a cluster
+		we will see how it helps pods resolve other pods,and services within the cluster
+	- Whenever a service is created, the Kubernetes DNS service, creates a record for the service.
+		It maps the service name to the IP address, so, within the cluster, any pod can now reach this service
+		using service name like http://web-service
+	- Let's assume the web service was in a separate namespace called apps then a pod in default namespace
+		will use http://web-service.apps, so kubernetes creates a subdomain for every namespace
+	- Now All the services are grouped together into another Sub Domain called SVC,
+		so you access it by http://web-service.apps.svc
+	- Finally, all the services and pods are grouped together, into a route domain for the cluster,
+		which is set to cluster.local, so now access will be  http://web-service.apps.svc.cluster.local
+		this is the fully qualified domain name fqdn for the service 
+	
+	-  What about pods? Records for pods are not created by default, but we can enable that explicitly
+		Once enabled records are created for pods as well. It does not use the pod name though
+		For pods K8s replaces the dots in the IP address with dashes.
+		So http://10-244-2-5.apps.pod.cluster.local
